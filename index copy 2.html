@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Force-Directed Graph with D3.js</title>
+    <style>
+        /* CSS 스타일링 */
+        .node-image {
+            cursor: pointer; /* 커서를 포인터로 변경하여 클릭 가능함을 나타냄 */
+        }
+        .link {
+            fill: none;
+            stroke: #ccc;
+            stroke-width: 1px; /* 간선 두께 조정 */
+        }
+        .tooltip {
+            position: absolute;
+            text-align: center;
+            width: 100px;
+            height: auto;
+            padding: 2px;
+            font: 12px sans-serif;
+            background: lightsteelblue;
+            border: 0px;
+            border-radius: 8px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <svg width="800" height="600"></svg>
+
+    <div class="tooltip" style="display: none;"></div> <!-- 팝업 요소 -->
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script>
+        // 데이터 로드
+        d3.json("graph.json").then(function(data) {
+
+            // force simulation 설정
+            var simulation = d3.forceSimulation(data.nodes)
+                .force("link", d3.forceLink(data.edges).id(function(d) { return d.url; }).distance(200)) // 간선 길이 조정
+                .force("charge", d3.forceManyBody().strength(-200)) // 노드 간의 중력 강도 조정
+                .force("center", d3.forceCenter(400, 300))
+                .on("tick", ticked);
+
+            // SVG 요소 생성
+            var svg = d3.select("svg"),
+                width = +svg.attr("width"),
+                height = +svg.attr("height");
+
+            // 간선 화살표 생성
+            svg.append("defs").selectAll("marker")
+                .data(["arrow"]) // 화살표를 나타내는 marker ID
+                .enter().append("marker")
+                .attr("id", "arrow")
+                .attr("viewBox", "0 -5 10 10")
+                .attr("refX", 16) // 화살표 위치 조정
+                .attr("refY", 0)
+                .attr("markerWidth", 6)
+                .attr("markerHeight", 6)
+                .attr("orient", "auto")
+                .append("path")
+                .attr("fill", "#ccc")
+                .attr("d", "M0,-5L10,0L0,5");
+
+            // 그래프 링크 추가
+            var link = svg.selectAll(".link")
+                .data(data.edges)
+                .enter().append("path")
+                .attr("class", "link")
+                .attr("marker-end", "url(#arrow)") // 화살표 추가
+                .style("stroke", "#ccc") // 간선 색상
+                .style("stroke-width", "1px") // 간선 두께
+                .style("fill", "none") // 간선 내부 색상 없음
+                .attr("d", function(d) {
+                    return "M" + d.source.x + "," + d.source.y + "Q" + (d.source.x + d.target.x) / 2 + "," + (d.source.y + d.target.y) / 2 + " " + d.target.x + "," + d.target.y;
+                });
+
+            // 그래프 노드 추가
+            var node = svg.selectAll(".node")
+                .data(data.nodes)
+                .enter().append("image")
+                .attr("class", "node-image")
+                .attr("xlink:href", "logo.png") // 로고 이미지 추가
+                .attr("width", 20) // 로고 이미지 크기 조정
+                .attr("height", 20)
+                .attr("x", function(d) { return d.x - 10; }) // 로고 이미지 위치 조정
+                .attr("y", function(d) { return d.y - 10; })
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended))
+                .on("mouseover", handleMouseOver)
+                .on("mouseout", handleMouseOut);
+
+            // 마우스 오버 시 팝업 표시
+            function handleMouseOver(event, d) {
+                d3.select(".tooltip") // 팝업 요소 선택
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 15) + "px")
+                    .style("display", "inline-block")
+                    .text(d.url);
+            }
+
+            // 마우스 아웃 시 팝업 숨김
+            function handleMouseOut(event, d) {
+                d3.select(".tooltip").style("display", "none"); // 팝업 숨김
+            }
+
+            // 그래프 레이아웃 업데이트
+            function ticked() {
+                link.attr("d", function(d) {
+                    return "M" + d.source.x + "," + d.source.y + "Q" + (d.source.x + d.target.x) / 2 + "," + (d.source.y + d.target.y) / 2 + " " + d.target.x + "," + d.target.y;
+                });
+
+                node.attr("x", function(d) { return d.x - 10; })
+                    .attr("y", function(d) { return d.y - 10; });
+            }
+
+            // 드래그 이벤트 처리
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+
+        });
+    </script>
+</body>
+</html>
